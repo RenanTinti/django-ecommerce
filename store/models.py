@@ -54,6 +54,16 @@ class Order(models.Model):
         total = sum([item.quantity for item in orderitems])
         return total
 
+    # This decorator checks if there's a physical item (non-digital item) in cart. If it has, it will ask for shipping information (customer address). The scripts will perform a loop through cart items.
+    @property
+    def shipping(self):
+        shipping = False
+        orderitems = self.orderitem_set.all()
+        for i in orderitems:
+            if i.product.digital == False:
+                shipping = True
+        return shipping
+
 class OrderItem(models.Model):
     product = models.ForeignKey(Product, on_delete=models.SET_NULL, blank=True, null=True)
     order = models.ForeignKey(Order, on_delete=models.SET_NULL, blank=True, null=True)
