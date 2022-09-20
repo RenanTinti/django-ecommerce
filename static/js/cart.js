@@ -30,7 +30,7 @@ function addCookieItem(productId, action){
     if(action == 'remove'){
         cart[productId]['quantity'] -= 1
 
-        IdleDeadline(cart[productId]['quantity'] <= 0){
+        if(cart[productId]['quantity'] <= 0){
             console.log('Remove item')
             delete cart[productId]
         }

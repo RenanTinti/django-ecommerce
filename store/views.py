@@ -3,21 +3,16 @@ from django.shortcuts import render
 from django.http import JsonResponse
 import json
 import datetime
+from .utils import cookie_cart, cart_data, guest_order
 
 from .models import *
 
 # Create your views here.
 def store(request):
 
-    if request.user.is_authenticated:
-        customer = request.user.customer
-        order, created = Order.objects.get_or_create(customer=customer, complete=False)
-        items = order.orderitem_set.all()
-        cart_items = order.get_cart_items
-    else:
-        items = []
-        order = {'get_cart_total': 0, 'get_cart_items': 0, 'shipping': False}
-        cart_items = order['get_cart_items']
+    data = cart_data(request)
+
+    cart_items = data['cart_items']
 
     products = Product.objects.all()
 
@@ -30,18 +25,10 @@ def store(request):
 
 def cart(request):
 
-    if request.user.is_authenticated:
-        customer = request.user.customer
-        order, created = Order.objects.get_or_create(customer=customer, complete=False)
-
-        # Query: get all the child order items that have the order as a father objects. Must be written in lower case and _set.all() right after
-        items = order.orderitem_set.all()
-
-        cart_items = order.get_cart_items
-    else:
-        items = []
-        order = {'get_cart_total': 0, 'get_cart_items': 0, 'shipping': False}
-        cart_items = order['get_cart_items']
+    data = cart_data(request)
+    cart_items = data['cart_items']
+    order = data['order']
+    items = data['items']
 
     context = {
         'items': items,
@@ -52,16 +39,11 @@ def cart(request):
     return render(request, 'store/cart.html', context)
 
 def checkout(request):
-
-    if request.user.is_authenticated:
-        customer = request.user.customer
-        order, created = Order.objects.get_or_create(customer=customer, complete=False)
-        items = order.orderitem_set.all()
-        cart_items = order.get_cart_items
-    else:
-        items = []
-        order = {'get_cart_total': 0, 'get_cart_items': 0, 'shipping': False}
-        cart_items = order['get_cart_items']
+   
+    data = cart_data(request)
+    cart_items = data['cart_items']
+    order = data['order']
+    items = data['items']
 
     context = {
         'items': items,
@@ -116,18 +98,25 @@ def process_order(request):
             order.complete = True
         order.save()
 
-        if order.shipping == True:
-            ShippingAddress.objects.create(
-                customer = customer,
-                order = order,
-                address = data['shipping']['address'],
-                city = data['shipping']['city'],
-                state = data['shipping']['state'],
-                zipcode = data['shipping']['zipcode'],
-            )
-
     else:
-        print('User is not logged in')
+        customer, order = guest_order(request, data)
+
+    total = float(data['form']['total'])
+    order.transaction_id = transaction_id
+
+    if total == order.get_cart_total:
+        order.complete = True
+    order.save()
+
+    if order.shipping == True:
+        ShippingAddress.objects.create(
+            customer = customer,
+            order = order,
+            address = data['shipping']['address'],
+            city = data['shipping']['city'],
+            state = data['shipping']['state'],
+            zipcode = data['shipping']['zipcode'],
+        )
 
     print('Data:', request.body)
 
